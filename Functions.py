@@ -1,14 +1,20 @@
-from unidecode import unidecode
-import re
-import pandas as pd
-import numpy as np
-import unicodedata
-import contractions
-import string
-import yake
 import os
+import re
+import string
+import unicodedata
+from tempfile import NamedTemporaryFile
+import contractions
 import fitz
+import numpy as np
+import pandas as pd
+import yake
+from langchain.prompts import PromptTemplate
+from langchain.chains.summarize import load_summarize_chain
+from langchain.embeddings import OllamaEmbeddings
+from langchain.schema import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sklearn.cluster import KMeans
+from unidecode import unidecode
 
 
 def extract_text(doc):
@@ -308,16 +314,133 @@ def clustering(vectors):
 
             # Append that position to your closest indices list
             closest_indices.append(closest_index)
-    else :
+    else:
         closest_indices = [k for k in range(len(vectors))]
 
     selected_indices = sorted(closest_indices)
     return selected_indices
 
 
-def read_pdf_with_fitz(file):
-    with fitz.open(stream=file.read(), filetype="pdf") as doc:
-        text = ""
-        for page in doc:
-            text += page.getText()
-        return text
+def text_upload(pdf_doc):
+    with NamedTemporaryFile(dir="tmp", suffix=".pdf") as f:
+        f.write(pdf_doc.getbuffer())
+        text = fitz.open(f.name)
+    return text
+
+
+def get_num_tokens(llm, text):
+    print(f"This text has {llm.get_num_tokens(text)} tokens in it")
+
+
+def chunking(text):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=10000,
+        chunk_overlap=3000
+    )
+    docs = text_splitter.create_documents([text])
+    print(f"Now our book is split up into {len(docs)} documents")
+    return docs
+
+
+def embedding(docs):
+    embeddings = OllamaEmbeddings(base_url="http://localhost:11434", model="zephyr")
+    vectors = embeddings.embed_documents([x.page_content for x in docs])
+    return vectors
+
+
+def chunks_summaries(docs, selected_indices, llm):
+    map_prompt = """
+                        You will be given a part from an article enclosed in triple backticks (```)
+                        Your goal is to give a summary of this part.
+
+                        ```{text}```
+                        FULL SUMMARY:
+                        """
+    map_prompt_template = PromptTemplate(
+        template=map_prompt, input_variables=["text"]
+    )
+    map_chain = load_summarize_chain(
+        llm=llm, chain_type="stuff", prompt=map_prompt_template
+    )
+
+    selected_docs = [docs[doc] for doc in selected_indices]
+
+    # Make an empty list to hold your summaries
+    summary_list = []
+
+    # Loop through a range of the length of your selected docs
+    for i, doc in enumerate(selected_docs):
+        # Go get a summary of the chunk
+        chunk_summary = map_chain.run([doc])
+
+        # Append that summary to your list
+        summary_list.append(chunk_summary)
+
+    summaries = "\n".join(summary_list)
+    return summaries
+
+
+def convert_to_document(text):
+    doc = Document(page_content=text)
+    return doc
+
+
+def combine_summary(summaries, llm):
+    combine_prompt = """
+                        You will be given a parts of an article enclosed in triple backticks (```)
+                        Your goal is to give a verbose summary and make it look like an article.
+
+                        ```{text}```
+                        VERBOSE SUMMARY:
+                        """
+    combine_prompt_template = PromptTemplate(
+        template=combine_prompt, input_variables=["text"]
+    )
+
+    reduce_chain = load_summarize_chain(
+        llm=llm,
+        chain_type="stuff",
+        prompt=combine_prompt_template,
+    )
+    output = reduce_chain.run([summaries])
+    return output
+
+
+def translation_to_french(text, llm):
+    translation = llm(f"translate in french this {text}")
+    return translation
+
+def processing(pdf_doc, llm):
+    # Text extraction/cleaning
+    text = merge_text(pdf_doc)
+
+    get_num_tokens(llm, text)
+
+    # Text chunking
+    docs = chunking(text)
+
+    # Embedding
+    vectors = embedding(docs)
+
+    # Clustering
+    selected_indices = clustering(vectors)
+
+    # Summary of selected chunks
+    summaries = chunks_summaries(docs, selected_indices, llm)
+
+    save_file("Output/Summaries", summaries)
+
+    # Convert summaries to Document
+    summaries_docs = convert_to_document(summaries)
+
+    get_num_tokens(llm, summaries_docs.page_content)
+
+    # Summary of the summaries
+    output = combine_summary(summaries_docs, llm)
+
+    save_file("Output/Summary", output)
+
+    # Translation
+    translation = translation_to_french(output, llm)
+
+    save_file("Output/translation", translation)
