@@ -11,7 +11,7 @@ from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Ollama
 import os
-from src.Functions import processing
+from src.PDFProcessor import PDFProcessor
 
 
 # Define data models using Pydantic
@@ -79,8 +79,11 @@ async def upload_file(uploaded_file: UploadFile = File(...)):
     # Open the PDF file using PyMuPDF
     text = fitz.open(save_path)
 
-    # Process the PDF using the custom processing function
-    processing(text, llm)
+    # Instantiate PDFProcessor
+    pdf_processor = PDFProcessor(text, llm)
+
+    # Call the process method to perform PDF processing
+    pdf_processor.process()
 
     # Return a JSON response indicating success along with the filename
     return {"filename": uploaded_file.filename, "message": "success"}

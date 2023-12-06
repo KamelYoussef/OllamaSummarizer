@@ -1,29 +1,73 @@
-"""Using Streamlit framework to create a simple web-based interface. The application allows users to upload a PDF
-file, which is then sent to a FastAPI backend for processing. The backend extracts information from the PDF and
-generates a summary.
-"""
-
 # Import necessary libraries
+import logging
 import time
 import streamlit as st
+import requests
 from htmlTemplates import css
-import requests # Library for making HTTP requests
+from config_loader import load_config
 
-# FastAPI backend endpoint for processing PDF files
-domain = "http://localhost:8000"
-url = f"{domain}/file/upload"
+# Read configuration from the config file
+config = load_config()
+
+# Constants
+PDF_FILE_NAME = "document.pdf"
+PDF_CONTENT_TYPE = "application/pdf"
 
 
-def homepage():
+def process_pdf(file):
+    """
+    Process the uploaded PDF file.
+
+    Parameters:
+    - file: File object representing the uploaded PDF.
+
+    Returns:
+    - None
+    """
+    try:
+        # Send the PDF file to the FastAPI backend
+        files = {"uploaded_file": (PDF_FILE_NAME, file, PDF_CONTENT_TYPE)}
+        response = requests.post(config["domain"] + "/file/upload", files=files)
+
+        # Check if the request was successful
+        response.raise_for_status()
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error during processing: {e}")
+        st.error("An error occurred during processing. Please try again.")
+
+
+def display_summary(output_path):
+    """
+    Display the summary obtained from the FastAPI backend.
+
+    Parameters:
+    - output_path: Path to the directory where output files are saved.
+
+    Returns:
+    - None
+    """
+    with open(output_path + "Translation.txt", "r") as file:
+        output = file.read()
+        st.write(output)
+
+
+def homepage(output_path="output/"):
     """
     Streamlit application.
 
     Displays a web-based interface allowing users to upload a PDF file,
     sends it to a FastAPI backend for processing, and displays the generated summary.
+
+    Parameters:
+    - output_path: Path to the directory where output files will be saved.
+
+    Returns:
+    - None
     """
     # Configure Streamlit page settings
     st.set_page_config(page_title="Résumé PDF", page_icon=":books:")
-    st.write(css, unsafe_allow_html=True) # Apply custom CSS style
+    st.write(css, unsafe_allow_html=True)  # Apply custom CSS style
 
     # Display a header in the main section
     st.header("Résumé du PDF")
@@ -35,24 +79,20 @@ def homepage():
         # Button to initiate processing when clicked
         if st.button("Commencer"):
             with st.spinner("Traitement..."):
-
                 # Measure the execution time
                 start = time.time()
 
-                # Send the PDF file to the FastAPI backend
-                files = {"uploaded_file": ("document.pdf", pdf_doc, "application/pdf")}
-                response = requests.post(url, files=files)
+                # Process the uploaded PDF
+                process_pdf(pdf_doc)
 
                 end = time.time()
-                print(f"\nExecution time in seconds: {end - start}")
+                logging.info(f"Execution time in seconds: {end - start}")
 
     # Display the Summary obtained from the FastAPI backend
-    with open("Output/Translation.txt", "r") as file:
-        output = file.read()
-        st.write(output)
+    display_summary(output_path)
 
     # Clear the dashboard (commented out for now)
-    # f = open('Output/Summary.txt', 'r+')
+    # f = open('output/Summary.txt', 'r+')
     # f.truncate(0)
 
 
