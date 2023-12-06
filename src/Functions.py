@@ -1,3 +1,4 @@
+# Import necessary libraries
 import os
 import re
 import string
@@ -18,34 +19,74 @@ from unidecode import unidecode
 
 
 def extract_text(doc):
-    output = []
-    raw = ""
+    """
+    Extracts plain text from a PyMuPDF document.
+
+    Parameters:
+    - doc: PyMuPDF document object.
+
+    Returns:
+    - raw: Concatenated plain text extracted from the document.
+    """
+
+    output = []  # List to store text blocks
+    raw = ""  # Accumulator for plain text
+
+    # Iterate through pages in the document
     for page in doc:
         output += page.get_text("blocks")
+
+    # Iterate through text blocks and extract only the text
     for block in output:
-        if block[6] == 0:  # We only take the text
-            plain_text = unidecode(block[4])  # Encode in ASCII
-            raw += plain_text
+        if block[6] == 0:  # Check if it's a text block
+            plain_text = unidecode(block[4])  # Encode in ASCII using unidecode
+            raw += plain_text  # Concatenate plain text
+
     return raw
 
 
 def extract_dict(doc):
-    block_dict = {}
-    page_num = 1
-    for page in doc:  # Iterate all pages in the document
+    """
+    Extracts text block information from a PyMuPDF document and organizes it into a dictionary.
+
+    Parameters:
+    - doc: PyMuPDF document object.
+
+    Returns:
+    - block_dict: Dictionary containing text block information for each page.
+    """
+    block_dict = {}  # Dictionary to store text block information
+    page_num = 1  # Initialize page number
+
+    # Iterate through all pages in the document
+    for page in doc:
         file_dict = page.get_text("dict")  # Get the page dictionary
         block = file_dict["blocks"]  # Get the block information
-        block_dict[page_num] = block  # Store in block dictionary
+        block_dict[page_num] = block  # Store in the block dictionary
         page_num += 1  # Increase the page value by 1
+
     return block_dict
 
 
+
 def extract_spans(doc):
-    spans = pd.DataFrame(columns=["xmin", "ymin", "xmax", "ymax", "text", "tag"])
+    """
+    Extracts text spans from a document and returns a DataFrame with span information.
+
+    Parameters:
+    - doc: PyMuPDF document object.
+
+    Returns:
+    - span_df: DataFrame containing information about text spans (xmin, ymin, xmax, ymax, text, is_upper, is_bold,
+               span_font, font_size).
+    """
+    spans = pd.DataFrame(columns=["xmin", "ymin", "xmax", "ymax", "text", "is_upper", "is_bold", "span_font", "font_size"])
     rows = []
+
+    # Iterate through pages and blocks using the extract_dict function
     for page_num, blocks in extract_dict(doc).items():
         for block in blocks:
-            if block["type"] == 0:
+            if block["type"] == 0:  # Check if it's a text block
                 for line in block["lines"]:
                     for span in line["spans"]:
                         xmin, ymin, xmax, ymax = list(span["bbox"])
@@ -54,83 +95,134 @@ def extract_spans(doc):
                         span_font = span["font"]
                         is_upper = False
                         is_bold = False
-                        if "bold" in span_font.lower():
-                            is_bold = True
+
+                        # Check if the span text is in uppercase
                         if re.sub("[\(\[].*?[\)\]]", "", text).isupper():
                             is_upper = True
+
+                        # Check if the span font has bold attribute
+                        if "bold" in span_font.lower():
+                            is_bold = True
+
+                        # Append span information to the rows list
                         if text.replace(" ", "") != "":
-                            rows.append(
-                                (
-                                    xmin,
-                                    ymin,
-                                    xmax,
-                                    ymax,
-                                    text,
-                                    is_upper,
-                                    is_bold,
-                                    span_font,
-                                    font_size,
-                                )
-                            )
-                            span_df = pd.DataFrame(
-                                rows,
-                                columns=[
-                                    "xmin",
-                                    "ymin",
-                                    "xmax",
-                                    "ymax",
-                                    "text",
-                                    "is_upper",
-                                    "is_bold",
-                                    "span_font",
-                                    "font_size",
-                                ],
-                            )
+                            rows.append((
+                                xmin,
+                                ymin,
+                                xmax,
+                                ymax,
+                                text,
+                                is_upper,
+                                is_bold,
+                                span_font,
+                                font_size,
+                            ))
+
+    # Create a DataFrame from the collected span information
+    span_df = pd.DataFrame(
+        rows,
+        columns=[
+            "xmin",
+            "ymin",
+            "xmax",
+            "ymax",
+            "text",
+            "is_upper",
+            "is_bold",
+            "span_font",
+            "font_size",
+        ],
+    )
+
     return span_df
 
 
 def score_span(doc):
-    span_scores = []
-    span_num_occur = {}
+    """
+    Scores and tags text spans based on font size, boldness, and uppercase characteristics.
+
+    Parameters:
+    - doc: PyMuPDF document object.
+
+    Returns:
+    - span_df: DataFrame containing information about text spans along with an additional "tag" column.
+    """
+    span_scores = []  # List to store span scores
+    span_num_occur = {}  # Dictionary to count occurrences of each span score
     special = "[(_:/,#%\=@)&]"
+
+    # Iterate through each span in the DataFrame obtained from extract_spans function
     for index, span_row in extract_spans(doc).iterrows():
         score = round(span_row.font_size)
         text = span_row.text
+
+        # Check for special characters in the text
         if not re.search(special, text):
+            # Adjust score based on bold and uppercase attributes
             if span_row.is_bold:
                 score += 1
             if span_row.is_upper:
                 score += 1
+
+        # Append the calculated score to the list
         span_scores.append(score)
+
+    # Count occurrences of each span score
     values, counts = np.unique(span_scores, return_counts=True)
     style_dict = {}
     for value, count in zip(values, counts):
         style_dict[value] = count
+
+    # Sort style_dict based on counts (not inplace)
     sorted(style_dict.items(), key=lambda x: x[1])
+
+    # Determine the primary font size
     p_size = max(style_dict, key=style_dict.get)
+
     idx = 0
     tag = {}
+
+    # Assign tags based on font size
     for size in sorted(values, reverse=True):
         idx += 1
         if size == p_size:
             idx = 0
             tag[size] = "p"
         if size > p_size:
-            tag[size] = "h{0}".format(idx)
+            tag[size] = f"h{idx}"
         if size < p_size:
-            tag[size] = "s{0}".format(idx)
+            tag[size] = f"s{idx}"
+
+    # Assign tags to each span based on the calculated scores
     span_tags = [tag[score] for score in span_scores]
+
+    # Create a DataFrame with additional "tag" column
     span_df = extract_spans(doc)
     span_df["tag"] = span_tags
+
     return span_df
 
 
+
 def correct_end_line(line):
-    "".join(line.rstrip().lstrip())
+    """
+    Checks if a line of text ends with a hyphen, indicating a continuation to the next line.
+
+    Parameters:
+    - line: The input line of text.
+
+    Returns:
+    - True if the line ends with a hyphen, indicating a continuation.
+    - False otherwise.
+    """
+    "".join(line.rstrip().lstrip())  # Remove leading and trailing whitespaces
+
+    # Check if the line ends with a hyphen
     if line[-1] == "-":
         return True
     else:
         return False
+
 
 
 def category_text(doc):
@@ -183,6 +275,15 @@ def clean_text(text):
 
 
 def to_lowercase(text):
+    """
+    Converts a given text to lowercase.
+
+    Parameters:
+    - text: The input text to be converted.
+
+    Returns:
+    - Lowercase version of the input text.
+    """
     return text.lower()
 
 
@@ -242,19 +343,45 @@ def lemmatize(text, nlp):
 
 
 def extract_keywords(text):
-    kw_extractor = yake.KeywordExtractor(top=20, stopwords=None)
-    keywords = kw_extractor.extract_keywords(text)
-    return [kw for kw, v in keywords]
+    """
+    Extracts keywords from a given text using the YAKE (Yet Another Keyword Extractor) algorithm.
+
+    Parameters:
+    - text: The input text from which keywords will be extracted.
+
+    Returns:
+    - List of extracted keywords.
+    """
+    kw_extractor = yake.KeywordExtractor(top=20, stopwords=None)  # Initialize YAKE extractor
+    keywords = kw_extractor.extract_keywords(text)  # Extract keywords using YAKE
+    return [kw for kw, v in keywords]  # Return a list of extracted keywords
 
 
 def save_file(name, doc):
+    """
+    Saves a document to a text file with the specified name.
+
+    Parameters:
+    - name: The desired name for the text file.
+    - doc: The document content to be saved.
+    """
     with open(name + ".txt", "w") as file:
         file.write(doc)
 
 
 def open_file(name):
+    """
+    Opens and reads the content of a text file.
+
+    Parameters:
+    - name: The name of the text file to be opened.
+
+    Returns:
+    - The content of the text file as a string.
+    """
     with open(name + ".txt", "r") as file:
         return file.read()
+
 
 
 def extract_info(input_file: str):
@@ -295,37 +422,43 @@ def is_valid_path(path):
 
 
 def clustering(vectors):
+    """
+    Performs K-means clustering on a set of vectors and returns the indices of representative points.
+
+    Parameters:
+    - vectors: List of vectors representing embeddings.
+
+    Returns:
+    - selected_indices: Indices of representative points after clustering.
+    """
     if len(vectors) > 10:
-        # Choose the number of clusters, this can be adjusted based on the book's content.
+        # Choose the number of clusters (adjustable based on content)
         num_clusters = 10
+
         # Perform K-means clustering
         kmeans = KMeans(n_clusters=num_clusters, random_state=42).fit(vectors)
         labels = kmeans.labels_
+
         # Find the closest embeddings to the centroids
-        # Create an empty list that will hold your closest points
         closest_indices = []
-        # Loop through the number of clusters you have
+
+        # Loop through the number of clusters
         for i in range(num_clusters):
-            # Get the list of distances from that particular cluster center
+            # Get the list of distances from that cluster center
             distances = np.linalg.norm(vectors - kmeans.cluster_centers_[i], axis=1)
 
             # Find the list position of the closest one (using argmin to find the smallest distance)
             closest_index = np.argmin(distances)
 
-            # Append that position to your closest indices list
+            # Append that position to the closest indices list
             closest_indices.append(closest_index)
     else:
+        # If the number of vectors is not greater than 10, consider all vectors as representative
         closest_indices = [k for k in range(len(vectors))]
 
+    # Sort the selected indices and return
     selected_indices = sorted(closest_indices)
     return selected_indices
-
-
-def text_upload(pdf_doc):
-    with NamedTemporaryFile(dir="../tmp", suffix=".pdf") as f:
-        f.write(pdf_doc.getbuffer())
-        text = fitz.open(f.name)
-    return text
 
 
 def get_num_tokens(llm, text):
@@ -333,12 +466,26 @@ def get_num_tokens(llm, text):
 
 
 def chunking(text):
+    """
+    Splits a given text into chunks using RecursiveCharacterTextSplitter.
+
+    Parameters:
+    - text: The input text to be chunked.
+
+    Returns:
+    - docs: List of documents obtained after splitting the input text.
+    """
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=10000,
         chunk_overlap=3000
     )
+
+    # Create documents by splitting the input text
     docs = text_splitter.create_documents([text])
-    print(f"Now our book is split up into {len(docs)} documents")
+
+    # Print the number of documents created
+    print(f"Now our text is split up into {len(docs)} documents")
+
     return docs
 
 

@@ -1,3 +1,8 @@
+"""A FastAPI web application with two endpoints. The application receives input in the form of a human-generated text
+or a PDF file, processes it using a language model (Zephyr) using Ollama, and provides the summary of the PDF file.
+"""
+
+# Import necessary libraries
 from fastapi import FastAPI, File, UploadFile, HTTPException
 import fitz
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +14,7 @@ import os
 from src.Functions import processing
 
 
+# Define data models using Pydantic
 class Input(BaseModel):
     human_input: str
 
@@ -17,10 +23,11 @@ class Output(BaseModel):
     output: str
 
 
+# Create a FastAPI application instance
 app = FastAPI()
 
+# Configure Cross-Origin Resource Sharing (CORS) middleware
 origins = ["*"]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -31,10 +38,13 @@ app.add_middleware(
 
 # Defining our locAL LLM using Ollama
 llm = Ollama(
-    model="zephyr", verbose=True, callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
+    model="zephyr",  # Specify the language model to use
+    verbose=True,
+    callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
 )
 
 
+# Function to handle conversation processing using llm
 def conversation(human_input):
     prompt = human_input
 
@@ -42,12 +52,15 @@ def conversation(human_input):
     return output
 
 
+# Define the "/conversation" endpoint to handle text input
 @app.post("/conversation")
 async def input(input: Input):
+    # Process the input using the conversation function
     output = Output(output=conversation(input.human_input))
     return output
 
 
+# Define the "/file/upload" endpoint to handle PDF file uploads
 @app.post("/file/upload")
 async def upload_file(uploaded_file: UploadFile = File(...)):
     # Check if the uploaded file is a PDF
@@ -63,14 +76,11 @@ async def upload_file(uploaded_file: UploadFile = File(...)):
     # Define the file path to save the PDF
     save_path = os.path.join(save_directory, uploaded_file.filename)
 
+    # Open the PDF file using PyMuPDF
     text = fitz.open(save_path)
 
-    # Main function
+    # Process the PDF using the custom processing function
     processing(text, llm)
 
+    # Return a JSON response indicating success along with the filename
     return {"filename": uploaded_file.filename, "message": "success"}
-
-
-
-
-
