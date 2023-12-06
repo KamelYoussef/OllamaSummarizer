@@ -322,7 +322,7 @@ def clustering(vectors):
 
 
 def text_upload(pdf_doc):
-    with NamedTemporaryFile(dir="tmp", suffix=".pdf") as f:
+    with NamedTemporaryFile(dir="../tmp", suffix=".pdf") as f:
         f.write(pdf_doc.getbuffer())
         text = fitz.open(f.name)
     return text

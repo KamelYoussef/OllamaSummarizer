@@ -108,3 +108,4 @@ validators==0.22.0
 yake==0.4.8
 yarl==1.9.3
 zipp==3.17.0
+fastapi~=0.104.1
