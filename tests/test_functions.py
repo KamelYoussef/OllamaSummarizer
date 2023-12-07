@@ -1,5 +1,5 @@
 import unittest
-from src.functions import *
+from backend.functions import *
 
 
 class TestTextProcessing(unittest.TestCase):

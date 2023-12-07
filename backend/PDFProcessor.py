@@ -1,6 +1,6 @@
 import os
 import logging
-from src.functions import *
+from backend.functions import *
 
 class PDFProcessor:
     def __init__(self, pdf_doc, llm, output_path="output/"):

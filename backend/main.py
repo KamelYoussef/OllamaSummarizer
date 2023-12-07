@@ -1,4 +1,4 @@
-"""A FastAPI web application with two endpoints. The application receives input in the form of a human-generated text
+"""A FastAPI frontend application with two endpoints. The application receives input in the form of a human-generated text
 or a PDF file, processes it using a language model (Zephyr) using Ollama, and provides the summary of the PDF file.
 """
 
@@ -11,7 +11,7 @@ from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Ollama
 import os
-from src.PDFProcessor import PDFProcessor
+from backend.PDFProcessor import PDFProcessor
 
 
 # Define data models using Pydantic
@@ -87,3 +87,4 @@ async def upload_file(uploaded_file: UploadFile = File(...)):
 
     # Return a JSON response indicating success along with the filename
     return {"filename": uploaded_file.filename, "message": "success"}
+

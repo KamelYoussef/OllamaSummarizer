@@ -3,11 +3,8 @@ import logging
 import time
 import streamlit as st
 import requests
-from htmlTemplates import css
-from config_loader import load_config
+from shared.config_loader import load_config
 
-# Read configuration from the config file
-config = load_config()
 
 # Constants
 PDF_FILE_NAME = "document.pdf"
@@ -51,12 +48,11 @@ def display_summary(output_path):
         output = file.read()
         st.write(output)
 
-
-def homepage(output_path="output/"):
+def app(output_path="output/"):
     """
     Streamlit application.
 
-    Displays a web-based interface allowing users to upload a PDF file,
+    Displays a frontend-based interface allowing users to upload a PDF file,
     sends it to a FastAPI backend for processing, and displays the generated summary.
 
     Parameters:
@@ -67,7 +63,12 @@ def homepage(output_path="output/"):
     """
     # Configure Streamlit page settings
     st.set_page_config(page_title="Résumé PDF", page_icon=":books:")
-    st.write(css, unsafe_allow_html=True)  # Apply custom CSS style
+
+    # Load external CSS file
+    css = open("frontend/pages/styles.css").read()
+
+    # Apply the styles using st.markdown
+    st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
     # Display a header in the main section
     st.header("Résumé du PDF")
@@ -95,7 +96,9 @@ def homepage(output_path="output/"):
     # f = open('output/Summary.txt', 'r+')
     # f.truncate(0)
 
-
 if __name__ == "__main__":
-    # Run the Streamlit application
-    homepage()
+    # Read configuration from the config file
+    config = load_config()
+
+    # Run the Streamlit app
+    app()
