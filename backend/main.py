@@ -63,28 +63,37 @@ async def input(input: Input):
 # Define the "/file/upload" endpoint to handle PDF file uploads
 @app.post("/file/upload")
 async def upload_file(uploaded_file: UploadFile = File(...)):
-    # Check if the uploaded file is a PDF
-    if uploaded_file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="File must be a PDF")
+    """
+    Endpoint to upload and process a PDF file.
 
-    # Define the directory to save the PDF file
-    save_directory = "uploaded_pdfs"
+    Parameters:
+    - uploaded_file: UploadFile object representing the uploaded file.
 
-    # Create the directory if it doesn't exist
-    os.makedirs(save_directory, exist_ok=True)
+    Returns:
+    - dict: A dictionary with a message or an error in case of failure.
+    """
+    try:
+        # Check if the uploaded file is a PDF
+        if uploaded_file.content_type != "application/pdf":
+            raise HTTPException(status_code=400, detail="File must be a PDF")
 
-    # Define the file path to save the PDF
-    save_path = os.path.join(save_directory, uploaded_file.filename)
+        # Read the content of the uploaded PDF file as bytes
+        pdf_bytes = await uploaded_file.read()
 
-    # Open the PDF file using PyMuPDF
-    text = fitz.open(save_path)
+        # Open the PDF file using PyMuPDF
+        pdf_document = fitz.open("pdf", pdf_bytes)
 
-    # Instantiate PDFProcessor
-    pdf_processor = PDFProcessor(text, llm)
+        # Instantiate PDFProcessor
+        pdf_processor = PDFProcessor(pdf_document, llm)
 
-    # Call the process method to perform PDF processing
-    pdf_processor.process()
+        # Call the process method to perform PDF processing
+        pdf_processor.process()
 
-    # Return a JSON response indicating success along with the filename
-    return {"filename": uploaded_file.filename, "message": "success"}
+        # Close the PDF document
+        pdf_document.close()
 
+        # Return a response
+        return {"message": "PDF file processed successfully"}
+
+    except Exception as e:
+        return {"error": f"Error during file upload and processing: {e}"}

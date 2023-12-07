@@ -23,7 +23,7 @@ def process_pdf(file):
     """
     try:
         # Send the PDF file to the FastAPI backend
-        files = {"uploaded_file": (PDF_FILE_NAME, file, PDF_CONTENT_TYPE)}
+        files = {"uploaded_file": (file.name, file.read(), PDF_CONTENT_TYPE)}
         response = requests.post(config["domain"] + "/file/upload", files=files)
 
         # Check if the request was successful
