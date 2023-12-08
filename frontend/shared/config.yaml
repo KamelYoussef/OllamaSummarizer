@@ -1,1 +1,3 @@
-domain: http://localhost:8000
+DOMAIN: http://localhost:8000
+MODEL : "zephyr"
+OLLAMA_URL : "http://localhost:11434"

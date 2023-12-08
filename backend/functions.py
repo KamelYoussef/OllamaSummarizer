@@ -13,10 +13,11 @@ from langchain.embeddings import OllamaEmbeddings
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sklearn.cluster import KMeans
+import faiss
 from unidecode import unidecode
-import logging
-import os
+from frontend.shared.config_loader import load_config
 
+config = load_config()
 
 def extract_text(doc):
     """
@@ -507,40 +508,63 @@ def extract_info(input_file: str):
     return True, output
 
 
-def clustering(vectors):
+def clustering(vectors, num_clusters=10):
     """
     Performs K-means clustering on a set of vectors and returns the indices of representative points.
 
     Parameters:
     - vectors: List of vectors representing embeddings.
+    - num_clusters: Number of clusters for K-means. Default is 10.
 
     Returns:
     - selected_indices: Indices of representative points after clustering.
     """
-    if len(vectors) > 10:
-        # Choose the number of clusters (adjustable based on content)
-        num_clusters = 10
-
-        # Perform K-means clustering
+    if len(vectors) >= num_clusters:
         kmeans = KMeans(n_clusters=num_clusters, random_state=42).fit(vectors)
         labels = kmeans.labels_
 
-        # Find the closest embeddings to the centroids
-        closest_indices = []
+        # Calculate distances to each cluster center
+        distances = np.linalg.norm(vectors - kmeans.cluster_centers_[labels], axis=1)
 
-        # Loop through the number of clusters
-        for i in range(num_clusters):
-            # Get the list of distances from that cluster center
-            distances = np.linalg.norm(vectors - kmeans.cluster_centers_[i], axis=1)
-
-            # Find the list position of the closest one (using argmin to find the smallest distance)
-            closest_index = np.argmin(distances)
-
-            # Append that position to the closest indices list
-            closest_indices.append(closest_index)
+        # Find the indices of the vectors closest to each cluster center
+        closest_indices = [np.argmin(distances[labels == i]) for i in range(num_clusters)]
     else:
-        # If the number of vectors is not greater than 10, consider all vectors as representative
-        closest_indices = [k for k in range(len(vectors))]
+        # If the number of vectors is less than the specified clusters, consider all vectors as representative
+        closest_indices = list(range(len(vectors)))
+
+    # Sort the selected indices and return
+    selected_indices = sorted(closest_indices)
+    return selected_indices
+
+
+def clustering_faiss(vectors, num_clusters=10):
+    """
+    Performs K-means clustering on a set of vectors and returns the indices of representative points using FAISS.
+
+    Parameters:
+    - vectors: List of vectors representing embeddings.
+    - num_clusters: Number of clusters for K-means. Default is 10.
+
+    Returns:
+    - selected_indices: Indices of representative points after clustering.
+    """
+    vectors = np.asarray(vectors).astype('float32')
+
+    # Initialize the FAISS index
+    index = faiss.IndexFlatL2(vectors.shape[1])
+
+    # Train the index with vectors
+    index.add(vectors)
+
+    # Perform clustering using KMeans
+    kmeans = faiss.Kmeans(vectors.shape[1], num_clusters, niter=20, verbose=True)
+    kmeans.train(vectors)
+
+    # Assign each vector to the nearest cluster center
+    _, labels = index.search(vectors, 1)
+
+    # Find the indices of the vectors closest to each cluster center
+    closest_indices = [np.argmin(labels == i) for i in range(num_clusters)]
 
     # Sort the selected indices and return
     selected_indices = sorted(closest_indices)
@@ -595,7 +619,7 @@ def embedding(docs):
     Returns:
     - vectors: Document embeddings generated using Ollama embeddings.
     """
-    embeddings = OllamaEmbeddings(base_url="http://localhost:11434", model="zephyr")
+    embeddings = OllamaEmbeddings(base_url=config["OLLAMA_URL"], model=config["MODEL"])
     vectors = embeddings.embed_documents([x.page_content for x in docs])
     return vectors
 

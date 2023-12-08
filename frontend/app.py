@@ -6,11 +6,6 @@ import requests
 from shared.config_loader import load_config
 
 
-# Constants
-PDF_FILE_NAME = "document.pdf"
-PDF_CONTENT_TYPE = "application/pdf"
-
-
 def process_pdf(file):
     """
     Process the uploaded PDF file.
@@ -23,8 +18,8 @@ def process_pdf(file):
     """
     try:
         # Send the PDF file to the FastAPI backend
-        files = {"uploaded_file": (file.name, file.read(), PDF_CONTENT_TYPE)}
-        response = requests.post(config["domain"] + "/file/upload", files=files)
+        files = {"uploaded_file": (file.name, file.read(), "application/pdf")}
+        response = requests.post(config["DOMAIN"] + "/file/upload", files=files)
 
         # Check if the request was successful
         response.raise_for_status()

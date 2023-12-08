@@ -3,15 +3,17 @@ or a PDF file, processes it using a language model (Zephyr) using Ollama, and pr
 """
 
 # Import necessary libraries
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 import fitz
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Ollama
-import os
 from backend.PDFProcessor import PDFProcessor
+from frontend.shared.config_loader import load_config
+
+config = load_config()
 
 
 # Define data models using Pydantic
@@ -36,16 +38,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Defining our locAL LLM using Ollama
+
 llm = Ollama(
-    model="zephyr",  # Specify the language model to use
-    verbose=True,
-    callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
+        model=config["MODEL"],  # Specify the language model to use
+        verbose=True,
+        callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
 )
 
 
 # Function to handle conversation processing using llm
-def conversation(human_input):
+def conversation(human_input, llm=llm):
+    """
+    Process a human input in a conversation context using the language model.
+
+    Parameters:
+    - human_input (str): The input provided by the user.
+
+    Returns:
+    - str: The model's response to the input.
+    """
     prompt = human_input
 
     output = llm(prompt)
@@ -55,22 +68,39 @@ def conversation(human_input):
 # Define the "/conversation" endpoint to handle text input
 @app.post("/conversation")
 async def input(input: Input):
+    """
+    Endpoint to handle text input for a conversation.
+
+    Parameters:
+    - input (Input): An Input object containing the human input.
+
+    Returns:
+    - Output: An Output object containing the model's response.
+    """
     # Process the input using the conversation function
     output = Output(output=conversation(input.human_input))
     return output
 
 
 # Define the "/file/upload" endpoint to handle PDF file uploads
-@app.post("/file/upload")
-async def upload_file(uploaded_file: UploadFile = File(...)):
+@app.post("/file/upload", response_model=dict)
+async def upload_file(uploaded_file: UploadFile = File(...), llm=llm):
     """
     Endpoint to upload and process a PDF file.
 
     Parameters:
-    - uploaded_file: UploadFile object representing the uploaded file.
+    - uploaded_file (UploadFile): The uploaded PDF file.
 
     Returns:
-    - dict: A dictionary with a message or an error in case of failure.
+    - dict: A dictionary with information about the processing status.
+
+    Raises:
+    - HTTPException: If the uploaded file is not a PDF (status_code=400).
+    - Exception: If an error occurs during file upload and processing.
+
+    Example:
+    - {"message": "Processing successful", "result": "output_summary_text"}
+    - {"error": "Error during file upload and processing: error_details"}
     """
     try:
         # Check if the uploaded file is a PDF
