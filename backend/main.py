@@ -87,13 +87,13 @@ async def upload_file(uploaded_file: UploadFile = File(...)):
         pdf_processor = PDFProcessor(pdf_document, llm)
 
         # Call the process method to perform PDF processing
-        pdf_processor.process()
+        output = pdf_processor.process()
 
         # Close the PDF document
         pdf_document.close()
 
         # Return a response
-        return {"message": "PDF file processed successfully"}
+        return {"message": "Processing successful", "result": output}
 
     except Exception as e:
         return {"error": f"Error during file upload and processing: {e}"}
