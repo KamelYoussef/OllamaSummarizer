@@ -596,8 +596,8 @@ def chunking(text):
     - docs: List of documents obtained after splitting the input text.
     """
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=10000,
-        chunk_overlap=3000
+        chunk_size=config["CHUNK_SIZE"],
+        chunk_overlap=config["CHUNK_OVERLAP"]
     )
 
     # Create documents by splitting the input text

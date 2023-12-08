@@ -1,4 +1,3 @@
-import os
 import logging
 from backend.functions import *
 
@@ -9,11 +8,26 @@ class PDFProcessor:
         self.llm = llm
 
     def _extract_and_clean_text(self):
+        """
+        Extracts and cleans text from the PDF document.
+
+        Returns:
+            str: Cleaned text.
+        """
         text = merge_text(self.pdf_doc)
         logging.info(f"Number of tokens in the extracted text: {get_num_tokens(self.llm, text)}")
         return text
 
     def _process_text(self, text):
+        """
+        Processes the input text.
+
+        Args:
+            text (str): Input text.
+
+        Returns:
+            list: Processed summaries.
+        """
         docs = chunking(text)
         vectors = embedding(docs)
         selected_indices = clustering(vectors)
@@ -21,6 +35,12 @@ class PDFProcessor:
         return summaries
 
     def process(self):
+        """
+        Process the PDF document.
+
+        Returns:
+            str: Translated output.
+        """
         try:
             # Extract and clean text
             text = self._extract_and_clean_text()

@@ -80,6 +80,7 @@ def app():
     if summary is not None:
         st.write(summary)
 
+
 if __name__ == "__main__":
     # Read configuration from the config file
     config = load_config()

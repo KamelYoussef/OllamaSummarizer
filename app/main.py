@@ -3,7 +3,7 @@ or a PDF file, processes it using a language model (Zephyr) using Ollama, and pr
 """
 
 # Import necessary libraries
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException
 import fitz
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,9 +11,14 @@ from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Ollama
 from backend.PDFProcessor import PDFProcessor
+import logging
 from frontend.shared.config_loader import load_config
 
 config = load_config()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # Define data models using Pydantic
@@ -38,13 +43,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # Defining our locAL LLM using Ollama
 
 llm = Ollama(
-        model=config["MODEL"],  # Specify the language model to use
-        verbose=True,
-        callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
+    model=config["MODEL"],  # Specify the language model to use
+    verbose=True,
+    callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
 )
 
 
@@ -61,8 +65,12 @@ def conversation(human_input, llm=llm):
     """
     prompt = human_input
 
-    output = llm(prompt)
-    return output
+    try:
+        output = llm(prompt)
+        return output
+    except Exception as e:
+        logger.error(f"Error during conversation processing: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 
 # Define the "/conversation" endpoint to handle text input
@@ -105,7 +113,7 @@ async def upload_file(uploaded_file: UploadFile = File(...), llm=llm):
     try:
         # Check if the uploaded file is a PDF
         if uploaded_file.content_type != "application/pdf":
-            raise HTTPException(status_code=400, detail="File must be a PDF")
+            raise HTTPException(status_code=400, detail="Invalid PDF file")
 
         # Read the content of the uploaded PDF file as bytes
         pdf_bytes = await uploaded_file.read()
@@ -125,5 +133,9 @@ async def upload_file(uploaded_file: UploadFile = File(...), llm=llm):
         # Return a response
         return {"message": "Processing successful", "result": output}
 
+    except HTTPException as http_exception:
+        raise http_exception
+
     except Exception as e:
-        return {"error": f"Error during file upload and processing: {e}"}
+        logger.error(f"Error during file upload and processing: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
