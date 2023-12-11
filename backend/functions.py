@@ -403,7 +403,6 @@ def remove_mentions_and_tags(text):
     return re.sub(r"[@#]\S*", "", text)
 
 
-
 def remove_special_characters(text):
     """
     Removes special characters from a given text, keeping only alphanumeric characters and selected symbols.
@@ -457,32 +456,6 @@ def extract_keywords(text):
     kw_extractor = yake.KeywordExtractor(top=20, stopwords=None)  # Initialize YAKE extractor
     keywords = kw_extractor.extract_keywords(text)  # Extract keywords using YAKE
     return [kw for kw, v in keywords]  # Return a list of extracted keywords
-
-
-def save_file(name, doc):
-    """
-    Saves a document to a text file with the specified name.
-
-    Parameters:
-    - name: The desired name for the text file.
-    - doc: The document content to be saved.
-    """
-    with open(name + ".txt", "w") as file:
-        file.write(doc)
-
-
-def open_file(name):
-    """
-    Opens and reads the content of a text file.
-
-    Parameters:
-    - name: The name of the text file to be opened.
-
-    Returns:
-    - The content of the text file as a string.
-    """
-    with open(name + ".txt", "r") as file:
-        return file.read()
 
 
 def extract_info(input_file: str):
@@ -573,16 +546,16 @@ def clustering_faiss(vectors, num_clusters=10):
 
 def get_num_tokens(llm, text):
     """
-    Prints the number of tokens in a given text using a language model.
+    Returns the number of tokens in a given text using a language model.
 
     Parameters:
     - llm: Language model object with a 'get_num_tokens' method.
     - text: The input text for token count.
 
     Returns:
-    - None (Prints the number of tokens in the given text).
+    - The number of tokens.
     """
-    print(f"This text has {llm.get_num_tokens(text)} tokens in it")
+    return llm.get_num_tokens(text)
 
 
 def chunking(text):
