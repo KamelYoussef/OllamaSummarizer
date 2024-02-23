@@ -4,10 +4,9 @@ import time
 import streamlit as st
 import requests
 from shared.config_loader import load_config
-from wordcloud import WordCloud
-from PIL import Image
-from spacy.lang.fr.stop_words import STOP_WORDS as fr_stop
-from io import BytesIO
+import base64
+from streamlit_pdf_viewer import pdf_viewer
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -57,41 +56,6 @@ def is_valid_pdf(file):
     return file is not None and file.type == "application/pdf"
 
 
-def generate_wordcloud(text):
-    """
-    Generate a word cloud from the given text.
-
-    Parameters:
-    - text: The input text for generating the word cloud.
-
-    Returns:
-    - wordcloud_image: Word cloud image.
-    """
-
-    stop_words = list(fr_stop)
-    wordcloud = WordCloud(width=800, height=400, background_color="white", stopwords=stop_words).generate(text)
-
-    # Convert to image
-    img = wordcloud.to_image()
-
-    # Convert image to bytes
-    img_bytes = BytesIO()
-    img.save(img_bytes, format="PNG")
-
-    return img_bytes.getvalue()
-
-
-def display_wordcloud(text):
-    """
-    Display the word cloud image.
-
-    Parameters:
-    - text: The input text for generating the word cloud.
-    """
-    st.subheader("Nuage de mots")
-    st.image(generate_wordcloud(text))
-
-
 def display_summary(text):
     """
     Display the summary.
@@ -99,8 +63,12 @@ def display_summary(text):
     Parameters:
     - text: The input text for displaying the summary.
     """
-    st.header("Résumé du PDF")
-    st.write(text)
+    st.text_area(label="Résumé du PDF", value=text, height=950, disabled=True)
+
+
+def display_pdf(pdf_doc):
+    binary = pdf_doc.getvalue()
+    pdf_viewer(input=binary)
 
 
 def app():
@@ -113,8 +81,9 @@ def app():
     Returns:
     - None
     """
+
     # Configure Streamlit page settings
-    st.set_page_config(page_title="Résumé PDF", page_icon=":books:")
+    st.set_page_config(page_title="Résumé PDF", page_icon=":books:", layout="wide")
 
     # Load external CSS file
     css = open("frontend/pages/styles.css").read()
@@ -125,9 +94,17 @@ def app():
     # Initialize summary variable
     summary = None
 
+    # Split the web page into two columns to display the PDF and its summary
+    col1, col2 = st.columns(spec=[1, 1], gap="small")
+
     # Sidebar section for file uploading
     with st.sidebar:
+        # Upload the PDF and display it
         pdf_doc = st.file_uploader("Selectionner votre fichier PDF ", type=["pdf"])
+        if pdf_doc:
+            with col1:
+                display_pdf(pdf_doc)
+
         # Button to initiate processing when clicked
         if st.button("Commencer"):
             with st.spinner("Traitement..."):
@@ -139,6 +116,7 @@ def app():
 
                 end = time.time()
                 logging.info(f"Execution time in seconds: {end - start}")
+
         st.markdown("---")
         if st.button("Vider le cache"):
             # Clear values from *all* all in-memory and on-disk data cache
@@ -146,11 +124,9 @@ def app():
 
     # Display the Summary obtained from the FastAPI backend
     if summary is not None:
-        # Display the summary
-        display_summary(summary)
-
-        # Display the wordcloud
-        display_wordcloud(summary)
+        with col2:
+            # Display the summary
+            display_summary(summary)
 
 
 if __name__ == "__main__":

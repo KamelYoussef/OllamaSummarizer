@@ -13,11 +13,11 @@ from langchain.embeddings import OllamaEmbeddings
 from langchain.schema import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sklearn.cluster import KMeans
-import faiss
 from unidecode import unidecode
 from frontend.shared.config_loader import load_config
 
 config = load_config()
+
 
 def extract_text(doc):
     """
@@ -84,7 +84,8 @@ def extract_spans(doc):
         raise ValueError("Invalid input: 'doc' must be a PyMuPDF document object.")
 
     try:
-        spans = pd.DataFrame(columns=["xmin", "ymin", "xmax", "ymax", "text", "is_upper", "is_bold", "span_font", "font_size"])
+        spans = pd.DataFrame(
+            columns=["xmin", "ymin", "xmax", "ymax", "text", "is_upper", "is_bold", "span_font", "font_size"])
         rows = []
 
         # Iterate through pages and blocks using the extract_dict function
@@ -141,7 +142,8 @@ def extract_spans(doc):
         return span_df
     except Exception as e:
         print(f"Error during span extraction: {e}")
-        return pd.DataFrame(columns=["xmin", "ymin", "xmax", "ymax", "text", "is_upper", "is_bold", "span_font", "font_size"])
+        return pd.DataFrame(
+            columns=["xmin", "ymin", "xmax", "ymax", "text", "is_upper", "is_bold", "span_font", "font_size"])
 
 
 def score_span(doc):
@@ -487,7 +489,6 @@ def clustering(vectors, num_clusters=10):
 
     Parameters:
     - vectors: List of vectors representing embeddings.
-    - num_clusters: Number of clusters for K-means. Default is 10.
 
     Returns:
     - selected_indices: Indices of representative points after clustering.
@@ -495,52 +496,11 @@ def clustering(vectors, num_clusters=10):
     if len(vectors) >= num_clusters:
         kmeans = KMeans(n_clusters=num_clusters, random_state=42).fit(vectors)
         labels = kmeans.labels_
-
-        # Calculate distances to each cluster center
-        distances = np.linalg.norm(vectors - kmeans.cluster_centers_[labels], axis=1)
-
-        # Find the indices of the vectors closest to each cluster center
-        closest_indices = [np.argmin(distances[labels == i]) for i in range(num_clusters)]
+        idx = [labels.tolist().index(i) for i in range(num_clusters)]  # need improvement
     else:
-        # If the number of vectors is less than the specified clusters, consider all vectors as representative
-        closest_indices = list(range(len(vectors)))
+        idx = list(range(len(vectors)))
 
-    # Sort the selected indices and return
-    selected_indices = sorted(closest_indices)
-    return selected_indices
-
-
-def clustering_faiss(vectors, num_clusters=10):
-    """
-    Performs K-means clustering on a set of vectors and returns the indices of representative points using FAISS.
-
-    Parameters:
-    - vectors: List of vectors representing embeddings.
-    - num_clusters: Number of clusters for K-means. Default is 10.
-
-    Returns:
-    - selected_indices: Indices of representative points after clustering.
-    """
-    vectors = np.asarray(vectors).astype('float32')
-
-    # Initialize the FAISS index
-    index = faiss.IndexFlatL2(vectors.shape[1])
-
-    # Train the index with vectors
-    index.add(vectors)
-
-    # Perform clustering using KMeans
-    kmeans = faiss.Kmeans(vectors.shape[1], num_clusters, niter=20, verbose=True)
-    kmeans.train(vectors)
-
-    # Assign each vector to the nearest cluster center
-    _, labels = index.search(vectors, 1)
-
-    # Find the indices of the vectors closest to each cluster center
-    closest_indices = [np.argmin(labels == i) for i in range(num_clusters)]
-
-    # Sort the selected indices and return
-    selected_indices = sorted(closest_indices)
+    selected_indices = sorted(idx)
     return selected_indices
 
 
@@ -609,13 +569,7 @@ def chunks_summaries(docs, selected_indices, llm):
     Returns:
     - summaries: Summaries for the selected document chunks.
     """
-    map_prompt = """
-                        You will be given a part from an article enclosed in triple backticks (```)
-                        Your goal is to give a summary of this part.
-
-                        ```{text}```
-                        FULL SUMMARY:
-                        """
+    map_prompt = """Give a title and a summary in one paragraph for the article : ```{text}```"""
     map_prompt_template = PromptTemplate(
         template=map_prompt, input_variables=["text"]
     )
@@ -636,7 +590,7 @@ def chunks_summaries(docs, selected_indices, llm):
         # Append that summary to your list
         summary_list.append(chunk_summary)
 
-    summaries = "\n".join(summary_list)
+    summaries = "\n\n\n".join(summary_list)
     return summaries
 
 
@@ -666,11 +620,11 @@ def combine_summary(summaries, llm):
     - output: Verbose summary combining the input summaries.
     """
     combine_prompt = """
-                        You will be given a parts of an article enclosed in triple backticks (```)
-                        Your goal is to give a verbose summary and make it look like an article.
+                        You are a journalist who writes article for a newspaper. You will be given a parts of an article enclosed in triple backticks (```)
+                        Your goal is to write a long well detailed article with a title, an introduction, and a conclusion from this article.
 
                         ```{text}```
-                        VERBOSE SUMMARY:
+                        The article :
                         """
     combine_prompt_template = PromptTemplate(
         template=combine_prompt, input_variables=["text"]
@@ -698,4 +652,3 @@ def translation_to_french(text, llm):
     """
     translation = llm(f"translate in french this : {text}")
     return translation
-

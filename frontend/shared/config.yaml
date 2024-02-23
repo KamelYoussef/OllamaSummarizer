@@ -1,5 +1,5 @@
 DOMAIN: http://localhost:8000
-MODEL : "zephyr"
+MODEL : "stablelm-zephyr"
 OLLAMA_URL : "http://localhost:11434"
 CHUNK_SIZE : 10000
 CHUNK_OVERLAP : 3000
