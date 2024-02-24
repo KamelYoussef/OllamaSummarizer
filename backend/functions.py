@@ -569,7 +569,9 @@ def chunks_summaries(docs, selected_indices, llm):
     Returns:
     - summaries: Summaries for the selected document chunks.
     """
-    map_prompt = """Give a title and a summary in one paragraph for the article : ```{text}```"""
+    map_prompt = """
+                    Give a title and a summary in one paragraph for the article : ```{text}```
+                    """
     map_prompt_template = PromptTemplate(
         template=map_prompt, input_variables=["text"]
     )
@@ -620,11 +622,7 @@ def combine_summary(summaries, llm):
     - output: Verbose summary combining the input summaries.
     """
     combine_prompt = """
-                        You are a journalist who writes article for a newspaper. You will be given a parts of an article enclosed in triple backticks (```)
-                        Your goal is to write a long well detailed article with a title, an introduction, and a conclusion from this article.
-
-                        ```{text}```
-                        The article :
+                        Give a summary in three sentences of th article : ```{text}```
                         """
     combine_prompt_template = PromptTemplate(
         template=combine_prompt, input_variables=["text"]
@@ -652,3 +650,18 @@ def translation_to_french(text, llm):
     """
     translation = llm(f"translate in french this : {text}")
     return translation
+
+
+def bullet_points_summaries(text, llm):
+    """
+    Translates a given text to French using a language model.
+
+    Parameters:
+    - text: The input text to be translated.
+    - llm: Language model object with translation capabilities.
+
+    Returns:
+    - translation: Translated text in French.
+    """
+    bullets = llm(f"Give very short bullet points that summarizes the article : ```{text}```")
+    return bullets

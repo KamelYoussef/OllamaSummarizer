@@ -53,7 +53,7 @@ def is_valid_pdf(file):
     """
     Check if the uploaded file is a valid PDF.
     """
-    return file is not None and file.type == "application/pdf"
+    return file is not None and file.type == "application/pdf" and file.size > 0
 
 
 def display_summary(text):
@@ -63,7 +63,7 @@ def display_summary(text):
     Parameters:
     - text: The input text for displaying the summary.
     """
-    st.text_area(label="Résumé du PDF", value=text, height=950, disabled=True)
+    st.text_area(label="Résumé du PDF", value=text, height=950)
 
 
 def display_pdf(pdf_doc):
@@ -87,8 +87,6 @@ def app():
 
     # Load external CSS file
     css = open("frontend/pages/styles.css").read()
-
-    # Apply the styles using st.markdown
     st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
 
     # Initialize summary variable
@@ -100,10 +98,16 @@ def app():
     # Sidebar section for file uploading
     with st.sidebar:
         # Upload the PDF and display it
-        pdf_doc = st.file_uploader("Selectionner votre fichier PDF ", type=["pdf"])
+        pdf_doc = st.file_uploader("Selectionner votre fichier PDF ", type=["pdf"], accept_multiple_files=False,
+                                   key="pdf_uploader", help="Taille maximale de fichier: 200Mo")
         if pdf_doc:
             with col1:
                 display_pdf(pdf_doc)
+
+        type = st.radio(
+            "Type du résumé",
+            ["Résumé long", "Résumé court", "Puces récapitulatives"],
+        )
 
         # Button to initiate processing when clicked
         if st.button("Commencer"):
@@ -125,8 +129,12 @@ def app():
     # Display the Summary obtained from the FastAPI backend
     if summary is not None:
         with col2:
-            # Display the summary
-            display_summary(summary)
+            if type == "Résumé long":
+                display_summary(summary[0])
+            elif type == "Résumé court":
+                display_summary(summary[1])
+            elif type == "Puces récapitulatives":
+                display_summary(summary[2])
 
 
 if __name__ == "__main__":

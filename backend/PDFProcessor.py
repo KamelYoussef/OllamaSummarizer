@@ -52,14 +52,17 @@ class PDFProcessor:
             summaries_docs = convert_to_document(summaries)
 
             # Summary of the summaries
-            #output = combine_summary(summaries_docs, self.llm)
+            output = combine_summary(summaries_docs, self.llm)
+
+            # Bullets points summary
+            bullets = bullet_points_summaries(output, self.llm)
 
             # Translation
             #translation = translation_to_french(output, self.llm)
 
             logging.info("Processing completed successfully.")
 
-            return summaries
+            return summaries, output, bullets
 
         except Exception as e:
             logging.error(f"Error during processing: {e}")
