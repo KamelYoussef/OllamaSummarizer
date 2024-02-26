@@ -588,6 +588,8 @@ def chunks_summaries(docs, selected_indices, llm):
     for i, doc in enumerate(selected_docs):
         # Go get a summary of the chunk
         chunk_summary = map_chain.run([doc])
+        chunk_summary = re.sub("Title: ", "", chunk_summary)
+        chunk_summary = re.sub("Summary: ", "\n", chunk_summary)
 
         # Append that summary to your list
         summary_list.append(chunk_summary)
@@ -622,7 +624,7 @@ def combine_summary(summaries, llm):
     - output: Verbose summary combining the input summaries.
     """
     combine_prompt = """
-                        Give a summary in three sentences of th article : ```{text}```
+                        Give a summary in three sentences of the article : ```{text}```
                         """
     combine_prompt_template = PromptTemplate(
         template=combine_prompt, input_variables=["text"]
@@ -648,7 +650,7 @@ def translation_to_french(text, llm):
     Returns:
     - translation: Translated text in French.
     """
-    translation = llm(f"translate in french this : {text}")
+    translation = llm(f"Give a translation in French of the article : ```{text}```")
     return translation
 
 
@@ -657,11 +659,11 @@ def bullet_points_summaries(text, llm):
     Translates a given text to French using a language model.
 
     Parameters:
-    - text: The input text to be translated.
-    - llm: Language model object with translation capabilities.
+    - text: The input text to be summarized.
+    - llm: Language model object with summarization capabilities.
 
     Returns:
-    - translation: Translated text in French.
+    - translation: summary in bullet points.
     """
     bullets = llm(f"Give very short bullet points that summarizes the article : ```{text}```")
     return bullets

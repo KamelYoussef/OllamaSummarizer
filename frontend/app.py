@@ -63,7 +63,8 @@ def display_summary(text):
     Parameters:
     - text: The input text for displaying the summary.
     """
-    st.text_area(label="Résumé du PDF", value=text, height=950)
+    words = len(text.split())
+    st.text_area(label=f"Résumé du PDF: ({words} mots", value=text, height=950)
 
 
 def display_pdf(pdf_doc):
