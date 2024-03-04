@@ -3,7 +3,7 @@ or a PDF file, processes it using a language model (Zephyr) using Ollama, and pr
 """
 
 # Import necessary libraries
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 import fitz
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -92,7 +92,7 @@ async def input(input: Input):
 
 # Define the "/file/upload" endpoint to handle PDF file uploads
 @app.post("/file/upload", response_model=dict)
-async def upload_file(uploaded_file: UploadFile = File(...), llm=llm):
+async def upload_file(uploaded_file: UploadFile = File(...), llm=llm, start: int = Query(...), end:int = Query(...)):
     """
     Endpoint to upload and process a PDF file.
 
@@ -120,6 +120,10 @@ async def upload_file(uploaded_file: UploadFile = File(...), llm=llm):
 
         # Open the PDF file using PyMuPDF
         pdf_document = fitz.open("pdf", pdf_bytes)
+
+        pages_selected = list(range(start-1, end))
+
+        pdf_document.select(pages_selected)
 
         # Instantiate PDFProcessor
         pdf_processor = PDFProcessor(pdf_document, llm)
