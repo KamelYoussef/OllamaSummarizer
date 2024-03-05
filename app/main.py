@@ -11,6 +11,7 @@ from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.llms import Ollama
 from backend.PDFProcessor import PDFProcessor
+from backend.PDFAnnotator import PDFAnnotator
 import logging
 from frontend.shared.config_loader import load_config
 
@@ -126,16 +127,22 @@ async def upload_file(uploaded_file: UploadFile = File(...), llm=llm, start: int
         pdf_document.select(pages_selected)
 
         # Instantiate PDFProcessor
-        pdf_processor = PDFProcessor(pdf_document, llm)
+        #pdf_processor = PDFProcessor(pdf_document, llm)
 
         # Call the process method to perform PDF processing
-        output = pdf_processor.process()
+        #output = pdf_processor.process()
+
+        # Initiate PDFAnnotator
+        pdf_annotator = PDFAnnotator(pdf_document, 0)
+        pdf_annotator.splitContent("ABSTRACT")
+        pdf_annotator.drawShape((0, 0, 0))
+
 
         # Close the PDF document
         pdf_document.close()
 
         # Return a response
-        return {"message": "Processing successful", "result": output}
+        return {"message": "Processing successful", "result": "output"}
 
     except HTTPException as http_exception:
         raise http_exception
