@@ -28,10 +28,10 @@ class PDFProcessor:
         Returns:
             list: Processed summaries.
         """
-        docs = chunking(text)
-        vectors = embedding(docs)
-        selected_indices = clustering(vectors)
-        summaries = chunks_summaries(docs, selected_indices, self.llm)
+        self.docs = chunking(text)
+        vectors = embedding(self.docs)
+        self.selected_indices = clustering(vectors)
+        summaries = chunks_summaries(self.docs, self.selected_indices, self.llm)
         return summaries
 
     def process(self):
@@ -59,7 +59,9 @@ class PDFProcessor:
 
             logging.info("Processing completed successfully.")
 
-            return summaries, output
+            selected_docs = [self.docs[doc] for doc in self.selected_indices]
+
+            return summaries, output, selected_docs
 
         except Exception as e:
             logging.error(f"Error during processing: {e}")
