@@ -117,8 +117,8 @@ def app():
         pdf_doc = st.file_uploader("Selectionner votre fichier PDF ", type=["pdf"], accept_multiple_files=False,
                                    key="pdf_uploader", help="Taille maximale de fichier: 200Mo")
         if pdf_doc:
-            with col1:
-                display_pdf(pdf_doc)
+            #with col1:
+            #    display_pdf(pdf_doc)
 
             # choose type of summary
             types = st.radio("Type du résumé", ["Résumé long", "Résumé court"])
@@ -148,6 +148,8 @@ def app():
 
     # Display the Summary obtained from the FastAPI backend
     if summary is not None:
+        with col1:
+            pdf_viewer("frontend/anno.pdf", height=590)
         with col2:
             if types == "Résumé long":
                 display_summary(summary[0])

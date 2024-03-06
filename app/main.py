@@ -93,19 +93,25 @@ async def input(input: Input):
 
 # Define the "/file/upload" endpoint to handle PDF file uploads
 @app.post("/file/upload", response_model=dict)
-async def upload_file(uploaded_file: UploadFile = File(...), llm=llm, start: int = Query(...), end:int = Query(...)):
+async def upload_file(
+    uploaded_file: UploadFile = File(...),
+    llm=llm,
+    start: int = Query(...),
+    end: int = Query(...)
+):
     """
     Endpoint to upload and process a PDF file.
 
     Parameters:
     - uploaded_file (UploadFile): The uploaded PDF file.
+    - llm: Your llm variable description (assuming it's globally available)
 
     Returns:
     - dict: A dictionary with information about the processing status.
 
     Raises:
     - HTTPException: If the uploaded file is not a PDF (status_code=400).
-    - Exception: If an error occurs during file upload and processing.
+    - HTTPException: If an error occurs during file upload and processing (status_code=500).
 
     Example:
     - {"message": "Processing successful", "result": "output_summary_text"}
@@ -122,8 +128,8 @@ async def upload_file(uploaded_file: UploadFile = File(...), llm=llm, start: int
         # Open the PDF file using PyMuPDF
         pdf_document = fitz.open("pdf", pdf_bytes)
 
-        pages_selected = list(range(start-1, end))
-
+        # Select pages based on provided range
+        pages_selected = list(range(start - 1, end))
         pdf_document.select(pages_selected)
 
         # Instantiate PDFProcessor
@@ -132,12 +138,11 @@ async def upload_file(uploaded_file: UploadFile = File(...), llm=llm, start: int
         # Call the process method to perform PDF processing
         output = pdf_processor.process()
 
-        # Initiate PDFAnnotator
+        # Initiate PDFAnnotator and highlight text in the document
         pdf_annotator = PDFAnnotator(pdf_document)
         for content in output[2]:
             text = content.page_content.split(".")
             text = [string for string in text if len(string) > 30]
-
             for t in text:
                 pdf_annotator.search_and_highlight(t)
 
