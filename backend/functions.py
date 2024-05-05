@@ -667,3 +667,20 @@ def bullet_points_summaries(text, llm):
     """
     bullets = llm(f"Give very short bullet points that summarizes the article : ```{text}```")
     return bullets
+
+
+def summ(docs, selected_indices, llm):
+    prompt_template = PromptTemplate.from_template(
+        "Write a title and a summary in one paragraph for the article : ```{text}```"
+    )
+    selected_docs = [docs[doc] for doc in selected_indices]
+    chain = prompt_template | llm
+    summary_list = []
+    for i in range(len(selected_docs)):
+        result = chain.invoke({
+            "text": selected_docs[i].page_content,
+        })
+        result = re.sub("Title: ", "", result)
+        result = re.sub("Summary: ", "", result)
+        summary_list.append(result)
+    return "\n\n".join(summary_list)

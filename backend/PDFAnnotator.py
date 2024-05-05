@@ -21,8 +21,8 @@ class PDFAnnotator:
         Returns:
             PDFDocument: The annotated PDF document.
         """
-        for page_num in range(len(self.document)):
-            try:
+        try:
+            for page_num in range(len(self.document)):
                 page = self.document.load_page(page_num)
                 text_instances = page.search_for(search_text)
 
@@ -30,8 +30,20 @@ class PDFAnnotator:
                     # Create highlight annotation
                     highlight = page.add_highlight_annot(inst)
                     highlight.set_colors(stroke=highlight_color)
-            except Exception as e:
-                print(f"Error processing page {page_num}: {e}")
+        except Exception as e:
+            print(f"Error annotating PDF: {e}")
 
         # Save changes
-        self.document.save("frontend/anno.pdf")
+        self.save_document("frontend/anno.pdf")
+
+    def save_document(self, output_path):
+        """
+        Save the annotated PDF document to a specified output path.
+
+        Args:
+            output_path (str): The path to save the annotated PDF document.
+        """
+        try:
+            self.document.save(output_path)
+        except Exception as e:
+            print(f"Error saving annotated PDF: {e}")

@@ -31,7 +31,8 @@ class PDFProcessor:
         self.docs = chunking(text)
         vectors = embedding(self.docs)
         self.selected_indices = clustering(vectors)
-        summaries = chunks_summaries(self.docs, self.selected_indices, self.llm)
+        #summaries = chunks_summaries(self.docs, self.selected_indices, self.llm)
+        summaries = summ(self.docs, self.selected_indices, self.llm)
         return summaries
 
     def process(self):

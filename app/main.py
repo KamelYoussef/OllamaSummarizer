@@ -47,7 +47,8 @@ app.add_middleware(
 # Defining our locAL LLM using Ollama
 
 llm = Ollama(
-    model=config["MODEL"],  # Specify the language model to use
+    model=config["MODEL"], # Specify the language model to use
+    base_url=config["OLLAMA_URL"],
     verbose=True,
     callback_manager=CallbackManager([StreamingStdOutCallbackHandler()])
 )
